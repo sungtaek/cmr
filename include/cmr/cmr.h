@@ -6,7 +6,7 @@
 
 typedef struct _cmr_conf {
 	int worker_count;
-	int max_sess_per_chann;
+	int max_sess_per_chan;
 	int max_sess_per_thr;
 	int port_start;
 	int port_end;
@@ -14,7 +14,7 @@ typedef struct _cmr_conf {
 
 #define CMR_CONF_DEFAULT(_c) { \
 	(_c).worker_count = 4; \
-	(_c).max_sess_per_chann = -1; \
+	(_c).max_sess_per_chan = -1; \
 	(_c).max_sess_per_thr = -1; \
 	(_c).port_start = 49152; \
 	(_c).port_end = 65535; \
@@ -33,6 +33,12 @@ cmr_t *cmr_create(cmr_conf_t conf);
 int cmr_start(cmr_t *cmr);
 int cmr_stop(cmr_t *cmr);
 void cmr_destroy(cmr_t *cmr);
+
+cmr_sess_t *cmr_create_session(cmr_t *cmr, cmr_chan_t *chan,
+		char *peer_ip, unsigned short peer_port);
+cmr_sess_t *cmr_get_session(cmr_t *cmr, long long sess_id);
+void cmr_destroy_session(cmr_t *cmr, cmr_sess_t *sess);
+
 
 #ifdef __cplusplus
 }
