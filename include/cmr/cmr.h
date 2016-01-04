@@ -1,8 +1,9 @@
 #ifndef _CMR_H_
 #define _CMR_H_
 
-#include "cmr/worker.h"
 #include "cmr/util.h"
+#include "cmr/worker.h"
+#include "cmr/channel.h"
 
 typedef struct _cmr_conf {
 	int worker_count;
@@ -34,10 +35,12 @@ int cmr_start(cmr_t *cmr);
 int cmr_stop(cmr_t *cmr);
 void cmr_destroy(cmr_t *cmr);
 
-cmr_sess_t *cmr_create_session(cmr_t *cmr, cmr_chan_t *chan,
-		char *peer_ip, unsigned short peer_port);
-cmr_sess_t *cmr_get_session(cmr_t *cmr, long long sess_id);
-void cmr_destroy_session(cmr_t *cmr, cmr_sess_t *sess);
+// channel functions
+int cmr_add_channel(cmr_t *cmr, cmr_chan_t *chan);
+cmr_chan_t *cmr_get_channel(cmr_t *cmr, long long chan_id);
+int cmr_get_all_channel(cmr_t *cmr, cmr_chan_t **chan_list, int list_len);
+int cmr_get_all_channel_in_worker(cmr_t *cmr, int worker_idx, cmr_chan_t **chan_list, int list_len);
+cmr_chan_t *cmr_remove_channel(cmr_t *cmr, long long chan_id);
 
 
 #ifdef __cplusplus

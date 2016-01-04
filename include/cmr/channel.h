@@ -3,11 +3,9 @@
 
 #include "cmr/session.h"
 
-typedef struct _cmr cmr_t;
-
 typedef struct _cmr_chan {
-	cmr_t *cmr;
 	long long id;
+	int worker_idx;
 	// sess_hash;
 	cmr_sess_t *sess_link;
 	int sess_count;
@@ -18,11 +16,15 @@ typedef struct _cmr_chan {
 extern "C" {
 #endif
 
-cmr_chan_t *cmr_chan_create(cmr_t *cmr);
-cmr_chan_t *cmr_chan_get(cmr_t *cmr, long long chan_id);
-int cmr_chan_get_all(cmr_t *cmr, cmr_chan_t **chan_list, int list_len);
-int cmr_chan_get_all_in_worker(cmr_t *cmr, int worker_idx, cmr_chan_t **chan_list, int list_len);
+cmr_chan_t *cmr_chan_create();
 void cmr_chan_destroy(cmr_chan_t *chan);
+
+// session functions
+int cmr_chan_add_session(cmr_chan_t *chan, cmr_sess_t *sess);
+cmr_sess_t *cmr_chan_get_session(cmr_chan_t *chan, long long sess_id);
+int cmr_chan_get_all_session(cmr_chan_t *chan, cmr_sess_t **sess_list, int list_len);
+cmr_sess_t *cmr_chan_remove_session(cmr_chan_t *chan, long long sess_id);
+
 
 #ifdef __cplusplus
 }

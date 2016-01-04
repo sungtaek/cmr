@@ -8,10 +8,10 @@
 typedef struct _cmr cmr_t;
 
 typedef struct _cmr_worker {
-	cmr_t	*cmr;
+	int idx;
 	cmr_thread_t thr;
-	int chann_count;
 	int sess_count;
+	int command_fd;
 	SessionSet *sess_set;
 } cmr_worker_t;
 
@@ -19,8 +19,10 @@ typedef struct _cmr_worker {
 extern "C" {
 #endif
 
-cmr_worker_t *cmr_worker_create(cmr_t *cmr);
-void cmr_worker_run(cmr_worker_t *worker);
+cmr_worker_t *cmr_worker_create();
+void cmr_worker_start(cmr_worker_t *worker);
+void *cmr_worker_command(
+
 
 #ifdef __cplusplus
 }
