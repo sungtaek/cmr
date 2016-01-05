@@ -1,17 +1,20 @@
 #ifndef _CMR_H_
 #define _CMR_H_
 
+typedef struct _cmr_conf cmr_conf_t;
+typedef struct _cmr cmr_t;
+
 #include "cmr/util.h"
 #include "cmr/worker.h"
 #include "cmr/channel.h"
 
-typedef struct _cmr_conf {
+struct _cmr_conf {
 	int worker_count;
 	int max_sess_per_chan;
 	int max_sess_per_thr;
 	int port_start;
 	int port_end;
-} cmr_conf_t;
+};
 
 #define CMR_CONF_DEFAULT(_c) { \
 	(_c).worker_count = 4; \
@@ -21,10 +24,11 @@ typedef struct _cmr_conf {
 	(_c).port_end = 65535; \
 }
 
-typedef struct _cmr {
+struct _cmr {
 	cmr_conf_t conf;
 	cmr_worker_t *worker_pool;
-} cmr_t;
+	cmr_chan_t *chan_hash;
+};
 
 #ifdef __cplusplus
 extern "C" {

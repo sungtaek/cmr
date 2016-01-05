@@ -1,16 +1,20 @@
 #ifndef _CMR_CHANNEL_H_
 #define _CMR_CHANNEL_H_
 
-#include "cmr/session.h"
+typedef struct _cmr_chan cmr_chan_t;
 
-typedef struct _cmr_chan {
+#include "cmr/util.h"
+#include "cmr/session.h"
+#include "cmr/worker.h"
+
+struct _cmr_chan {
 	long long id;
-	int worker_idx;
-	// sess_hash;
-	cmr_sess_t *sess_link;
+	cmr_worker_t *worker;
+	cmr_sess_t *sess_hash;
 	int sess_count;
-	struct _cmr_chan *next;
-} cmr_chan_t;
+	UT_hash_handle cmr_hh;
+	UT_hash_handle worker_hh;
+};
 
 #ifdef __cplusplus
 extern "C" {

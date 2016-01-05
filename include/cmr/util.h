@@ -1,7 +1,18 @@
 #ifndef _CMR_UTIL_H_
 #define _CMR_UTIL_H_
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <limits.h>
+#include <string.h>
 #include <pthread.h>
+#include <search.h>
+
+#include "uthash.h"
+#include "utlist.h"
+#include "utarray.h"
+
+// Thread utils
 
 typedef pthread_t cmr_thread_t;
 typedef pthread_attr_t cmr_thread_attr_t;
@@ -41,8 +52,12 @@ unsigned long __cmr_thread_self(void);
 #define cmr_cond_wait          pthread_cond_wait
 #define cmr_cond_destroy       pthread_cond_destroy
 
-#define SUCC	0
-#define ERR		-1
+#define SUCC				0
+#define ERR					-1
+#define ERR_INVALID_PARAM	-2
+#define ERR_SESSION_FULL	-3
+#define ERR_SYSTEM_MEMORY	-100
+
 
 #endif /* _CMR_UTIL_H_ */
 
