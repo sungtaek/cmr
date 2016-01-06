@@ -14,8 +14,7 @@ struct _cmr_worker {
 	cmr_t *cmr;
 	cmr_thread_t thr;
 	int sess_count;
-	int cmd_req_fd;
-	int cmd_resp_fd;
+	int cmd_pipe[2];
 	SessionSet *sess_set;
 	cmr_chan_t *chan_hash;
 	cmr_worker_t *next;

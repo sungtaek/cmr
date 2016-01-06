@@ -28,6 +28,8 @@ cmr_t *cmr_create(cmr_conf_t conf)
 		cmr->worker_pool = worker;
 	}
 
+	cmr->chan_hash = NULL;
+
 	printf("cmr created!!\n");
 	return cmr;
 }
@@ -169,7 +171,7 @@ cmr_chan_t *cmr_remove_channel(cmr_t *cmr, long long chan_id)
 	return chan;
 }
 
-void _cmr_destroy_worker_pool(cmr_t *cmr)
+static void _cmr_destroy_worker_pool(cmr_t *cmr)
 {
 	if(cmr && cmr->worker_pool) {
 		cmr_worker_t *worker = cmr->worker_pool;
@@ -181,3 +183,4 @@ void _cmr_destroy_worker_pool(cmr_t *cmr)
 		cmr->worker_pool = NULL;
 	}
 }
+

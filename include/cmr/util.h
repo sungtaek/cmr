@@ -58,6 +58,7 @@ unsigned long __cmr_thread_self(void);
 #define ERR_SESSION_FULL	-3
 #define ERR_SYSTEM_MEMORY	-100
 
+long long gen_unique_id();
 
 #endif /* _CMR_UTIL_H_ */
 
