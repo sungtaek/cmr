@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "ortp/ortp.h"
+
 #include "cmr/util.h"
 #include "cmr/cmr.h"
 
@@ -29,6 +31,8 @@ cmr_t *cmr_create(cmr_conf_t conf)
 	}
 
 	cmr->chan_hash = NULL;
+	ortp_init();
+	ortp_scheduler_init();
 
 	printf("cmr created!!\n");
 	return cmr;
