@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "ortp/ortp.h"
+
 #include "cmr/util.h"
 #include "cmr/cmr.h"
 
@@ -27,6 +29,9 @@ cmr_t *cmr_create(cmr_conf_t conf)
 		cmr_worker_set_next(worker, cmr->worker_pool);
 		cmr->worker_pool = worker;
 	}
+
+	ortp_init();
+	ortp_scheduler_init();
 
 	printf("cmr created!!\n");
 	return cmr;

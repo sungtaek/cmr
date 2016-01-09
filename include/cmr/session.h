@@ -8,10 +8,9 @@ typedef struct _cmr_sess cmr_sess_t;
 #include "cmr/util.h"
 #include "cmr/channel.h"
 
-#define SESS_MODE_NONE		0
-#define SESS_MODE_SEND_ONLY	1
-#define SESS_MODE_RECV_ONLY	2
-#define SESS_MODE_SEND_RECV	3
+#define SESS_MODE_SENDONLY	1
+#define SESS_MODE_RECVONLY	2
+#define SESS_MODE_SENDRECV	3
 
 struct _cmr_sess {
 	long long id;
