@@ -35,7 +35,7 @@ cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
 		return NULL;
 	}
 
-	// TODO: set local ip, port
+	// TODO: set local ip, alloc  port
 	rtp_session_set_local_addr(sess->raw_sess, "0.0.0.0", 3600,3601);
 	rtp_Session_set_remote_addr(sess->raw_sess, peer_ip, peer_port);
 
@@ -45,6 +45,7 @@ cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
 void cmr_sess_destroy(cmr_sess_t *sess)
 {
 	if(sess) {
+		// TODO: check namespace
 		if(sess->chan) {
 			cmr_chan_remove_session(sess->chan, sess->id);
 		}
@@ -59,6 +60,7 @@ int cmr_sess_set_mode(cmr_sess_t *sess, int mode)
 		return ERR_INVALID_PARAM;
 	}
 
+	// TODO: check namespace
 	// TODO: check rtp_session_init
 	if(mode != sess->mode) {
 		switch(mode) {
