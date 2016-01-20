@@ -26,6 +26,8 @@ ADD_LIBRARY(
 	${CMR_NAME}
 	SHARED
 	${CMR_SRC_PATH}/cmr.c
+	${CMR_SRC_PATH}/worker.c
+	${CMR_SRC_PATH}/channel.c
 	${CMR_SRC_PATH}/session.c
 	${CMR_SRC_PATH}/util.c
 )

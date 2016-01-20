@@ -23,14 +23,15 @@ cmr_chan_t *cmr_chan_create()
 void cmr_chan_destroy(cmr_chan_t *chan)
 {
 	if(chan) {
-		cmr_sess_t* cur, tmp;
+		cmr_sess_t *cur = NULL;
+		cmr_sess_t *tmp = NULL;
 
 		if(chan->worker) {
 			cmr_worker_remove_channel(chan->worker, chan->id);
 		}
 		if(chan->sess_hash) {
 			HASH_ITER(chan_hh, chan->sess_hash, cur, tmp) {
-				HASH_DEL(chan->sess_hash, cur);
+				HASH_DELETE(chan_hh, chan->sess_hash, cur);
 				cur->chan = NULL;
 				cmr_sess_destroy(cur);
 			}
@@ -45,10 +46,10 @@ typedef struct _add_sess_arg {
 	cmr_sess_t *sess;
 } add_sess_arg_t;
 
-static void *_cmr_chan_add_session(add_sess_arg_t *arg)
+static void *_cmr_chan_add_session(void *arg)
 {
-	cmr_chan_t *chan = arg->chan;
-	cmr_sess_t *sess = arg->sess;
+	cmr_chan_t *chan = ((add_sess_arg_t*)arg)->chan;
+	cmr_sess_t *sess = ((add_sess_arg_t*)arg)->sess;
 
 	HASH_ADD(chan_hh, chan->sess_hash, id, sizeof(sess->id), sess);
 	chan->sess_count++;
@@ -67,9 +68,9 @@ int cmr_chan_add_session(cmr_chan_t *chan, cmr_sess_t *sess)
 	arg.chan = chan;
 	arg.sess = sess;
 	if(cmr_worker_is_in_worker(chan->worker)) {
-		return (int)cmr_worker_commnd(chan->worker, _cmr_chan_add_session, &arg);
+		return (int)(long)cmr_worker_command(chan->worker, _cmr_chan_add_session, &arg);
 	}
-	return (int)_cmr_chan_add_session(&arg);
+	return (int)(long)_cmr_chan_add_session(&arg);
 }
 
 cmr_sess_t *cmr_chan_get_session(cmr_chan_t *chan, long long sess_id)
@@ -88,7 +89,8 @@ cmr_sess_t *cmr_chan_get_session(cmr_chan_t *chan, long long sess_id)
 int cmr_chan_get_all_session(cmr_chan_t *chan, cmr_sess_t **sess_list, int list_len)
 {
 	int len=0;
-	cmr_sess_t *sess=NULL, *tmp;
+	cmr_sess_t *sess=NULL;
+	cmr_sess_t *tmp=NULL;
 	
 	if(!chan || !sess_list) {
 		return ERR_INVALID_PARAM;
@@ -111,10 +113,10 @@ typedef struct _remove_sess_arg {
 	long long sess_id;
 } remove_sess_arg_t;
 
-static void *_cmr_chan_remove_session(remove_sess_arg_t *arg)
+static void *_cmr_chan_remove_session(void *arg)
 {
-	cmr_chan_t *chan = arg->chan;
-	long long sess_id = arg->sess_id;
+	cmr_chan_t *chan = ((remove_sess_arg_t*)arg)->chan;
+	long long sess_id = ((remove_sess_arg_t*)arg)->sess_id;
 	cmr_sess_t *sess = NULL;
 	
 	sess = cmr_chan_get_session(chan, sess_id);
@@ -138,7 +140,7 @@ cmr_sess_t *cmr_chan_remove_session(cmr_chan_t *chan, long long sess_id)
     arg.chan = chan;
     arg.sess_id = sess_id;
 	if(cmr_worker_is_in_worker(chan->worker)) {
-		return (cmr_sess_t*)cmr_worker_commnd(chan->worker, _cmr_chan_remove_session, &arg);
+		return (cmr_sess_t*)cmr_worker_command(chan->worker, _cmr_chan_remove_session, &arg);
 	}
 	
 	return (cmr_sess_t*)_cmr_chan_remove_session(&arg);

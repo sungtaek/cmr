@@ -15,7 +15,7 @@ struct _cmr_worker {
 	cmr_thread_t thr;
 	unsigned long id;
 	int sess_count;
-	cmr_rwlock_t cmd_lock;
+	cmr_mutex_t cmd_lock;
 	int cmd_pipe[2];
 	SessionSet *sess_set;
 	cmr_chan_t *chan_hash;

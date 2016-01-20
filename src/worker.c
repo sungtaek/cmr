@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "orpt/sessionset.h"
+#include "ortp/sessionset.h"
 
 #include "cmr/worker.h"
 
@@ -29,17 +29,13 @@ cmr_worker_t *cmr_worker_create(int idx)
 
 	worker->idx = idx;
 	worker->cmr = NULL;
-	if(!cmr_thread_create(&worker->thr, NULL)) {
-		free(worker);
-		return NULL;
-	}
 	worker->id = 0;
 	worker->sess_count = 0;
 	cmr_mutex_init(&worker->cmd_lock, NULL);
 	worker->cmd_pipe[0] = -1;
 	worker->cmd_pipe[1] = -1;
 	worker->sess_set = session_set_new();
-	if(!sess_set) {
+	if(!worker->sess_set) {
 		cmr_mutex_destroy(&worker->cmd_lock);
 		free(worker);
 		return NULL;
@@ -116,7 +112,7 @@ void *cmr_worker_command(cmr_worker_t *worker, void *(*command)(void *), void *a
 int cmr_worker_add_channel(cmr_worker_t *worker, cmr_chan_t *chan)
 {
 	// TODO
-	return SUCC
+	return SUCC;
 }
 
 cmr_chan_t *cmr_worker_get_channel(cmr_worker_t *worker, long long chan_id)
@@ -170,8 +166,8 @@ static void *_cmr_worker_stop_command(void *arg)
 	// close cmd_pipe
 	close(worker->cmd_pipe[0]);
 	close(worker->cmd_pipe[1]);
-	cmd_pipe[0] = -1;
-	cmd_pipe[1] = -1;
+	worker->cmd_pipe[0] = -1;
+	worker->cmd_pipe[1] = -1;
 
 	// disable worker
 	worker->id = 0;
