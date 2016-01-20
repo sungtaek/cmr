@@ -13,7 +13,9 @@ struct _cmr_worker {
 	int idx;
 	cmr_t *cmr;
 	cmr_thread_t thr;
+	unsigned long id;
 	int sess_count;
+	cmr_rwlock_t cmd_lock;
 	int cmd_pipe[2];
 	SessionSet *sess_set;
 	cmr_chan_t *chan_hash;
@@ -34,13 +36,16 @@ extern "C" {
 cmr_worker_t *cmr_worker_create(int idx);
 void cmr_worker_destroy(cmr_worker_t *worker);
 
-void cmr_worker_start(cmr_worker_t *worker);
+int cmr_worker_start(cmr_worker_t *worker);
+void cmr_worker_stop(cmr_worker_t *worker);
+
+int cmr_worker_is_in_worker(cmr_worker_t *worker);
 void *cmr_worker_command(cmr_worker_t *worker, void *(*command)(void *), void *arg);
+
 int cmr_worker_add_channel(cmr_worker_t *worker, cmr_chan_t *chan);
 cmr_chan_t *cmr_worker_get_channel(cmr_worker_t *worker, long long chan_id);
 int cmr_worker_get_all_channel(cmr_worker_t *worker, cmr_chan_t **chan_list, int list_len);
 cmr_chan_t *cmr_worker_remove_channel(cmr_worker_t *worker, long long chan_id);
-void cmr_worker_stop(cmr_worker_t *worker);
 
 #ifdef __cplusplus
 }
