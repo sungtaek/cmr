@@ -30,12 +30,13 @@ cmr_worker_t *cmr_worker_create(int idx)
 	worker->idx = idx;
 	worker->cmr = NULL;
 	worker->id = 0;
-	cmr_mutex_init(&worker->lock, NULL);
+	cmr_rwlock_init(&worker->lock, NULL);
 	cmr_mutex_init(&worker->cmd_lock, NULL);
 	worker->cmd_pipe[0] = -1;
 	worker->cmd_pipe[1] = -1;
 	worker->sess_set = session_set_new();
 	if(!worker->sess_set) {
+		cmr_rwlock_destroy(&worker->lock);
 		cmr_mutex_destroy(&worker->cmd_lock);
 		free(worker);
 		return NULL;
@@ -53,17 +54,20 @@ void cmr_worker_destroy(cmr_worker_t *worker)
 		cmr_chan_t *chan = NULL;
 		cmr_chan_t *tmp = NULL;
 
+		cmr_worker_stop(worker);
+
 		if(worker->chan_hash) {
-			cmr_mutex_lock(&worker->lock);
+			cmr_rwlock_wrlock(&worker->lock);
 			HASH_ITER(worker_hh, worker->chan_hash, chan, tmp) {
 				HASH_DELETE(worker_hh, worker->chan_hash, chan);
 				cmr_chan_set_worker(chan, NULL);
 				cmr_chan_destroy(chan);
 			}
-			cmr_mutex_unlock(&worker->lock);
+			cmr_rwlock_unlock(&worker->lock);
 		}
 
-		cmr_mutex_destroy(&worker->lock);
+		cmr_rwlock_destroy(&worker->lock);
+		cmr_mutex_destroy(&worker->cmd_lock);
 		free(worker);
 	}
 }
@@ -186,11 +190,11 @@ static void *_cmr_worker_add_channel(void *arg)
 		return (void*)ERR_ALREADY_EXIST;
 	}
 
-	cmr_mutex_lock(&worker->lock);
+	cmr_rwlock_wrlock(&worker->lock);
 	HASH_ADD(worker_hh, worker->chan_hash, id, sizeof(chan->id), chan);
 	cmr_chan_set_worker(chan, worker);
 	worker->chan_count++;
-	cmr_mutex_unlock(&worker->lock);
+	cmr_rwlock_unlock(&worker->lock);
 
 	return (void*)(long)worker->chan_count;
 }
@@ -221,9 +225,9 @@ cmr_chan_t *cmr_worker_get_channel(cmr_worker_t *worker, long long chan_id)
 		return NULL;
 	}
 
-	cmr_mutex_lock(&worker->lock);
+	cmr_rwlock_rdlock(&worker->lock);
 	HASH_FIND(worker_hh, worker->chan_hash, &chan_id, sizeof(chan_id), chan);
-	cmr_mutex_unlock(&chan->lock);
+	cmr_rwlock_unlock(&worker->lock);
 
 	return chan;
 }
@@ -238,7 +242,7 @@ int cmr_worker_get_all_channel(cmr_worker_t *worker, cmr_chan_t **chan_list, int
 		return ERR_INVALID_PARAM;
 	}
 
-	cmr_mutex_lock(&worker->lock);
+	cmr_rwlock_rdlock(&worker->lock);
 	HASH_ITER(worker_hh, worker->chan_hash, chan, tmp) {
 		if(len < list_len) {
 			chan_list[len++] = chan;
@@ -247,7 +251,7 @@ int cmr_worker_get_all_channel(cmr_worker_t *worker, cmr_chan_t **chan_list, int
 			break;
 		}
 	}
-	cmr_mutex_unlock(&worker->lock);
+	cmr_rwlock_unlock(&worker->lock);
 
 	return len;
 }
@@ -265,11 +269,11 @@ static void *_cmr_worker_remove_channel(void *arg)
 
 	chan = cmr_worker_get_channel(worker, chan_id);
 	if(chan) {
-		cmr_mutex_lock(&worker->lock);
+		cmr_rwlock_wrlock(&worker->lock);
 		HASH_DELETE(worker_hh, worker->chan_hash, chan);
 		cmr_chan_set_worker(chan, NULL);
 		worker->chan_count--;
-		cmr_mutex_unlock(&worker->lock);
+		cmr_rwlock_unlock(&worker->lock);
 		return chan;
 	}
 

@@ -10,7 +10,7 @@ typedef struct _cmr_chan cmr_chan_t;
 struct _cmr_chan {
 	long long id;
 	cmr_worker_t *worker;
-	cmr_mutex_t lock;
+	cmr_rwlock_t lock;
 	cmr_sess_t *sess_hash;
 	int sess_count;
 	UT_hash_handle cmr_hh;
