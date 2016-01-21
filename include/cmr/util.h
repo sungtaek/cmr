@@ -56,6 +56,8 @@ unsigned long __cmr_thread_self(void);
 #define ERR					-1
 #define ERR_INVALID_PARAM	-2
 #define ERR_SESSION_FULL	-3
+#define ERR_ALREADY_USED	-4
+#define ERR_ALREADY_EXIST	-5
 #define ERR_SYSTEM_MEMORY	-100
 
 #ifdef __cplusplus

@@ -20,6 +20,11 @@ struct _cmr_sess {
 	UT_hash_handle chan_hh;
 };
 
+#define cmr_sess_set_chan(_s, _c) (_s)->chan = (_c)
+#define cmr_sess_get_id(_s) (_s)->id
+#define cmr_sess_get_chan(_s) (_s)->chan
+#define cmr_sess_get_mode(_s) (_s)->mode
+
 #ifdef __cplusplus
 extern "C" {
 #endif

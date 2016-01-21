@@ -10,11 +10,16 @@ typedef struct _cmr_chan cmr_chan_t;
 struct _cmr_chan {
 	long long id;
 	cmr_worker_t *worker;
+	cmr_mutex_t lock;
 	cmr_sess_t *sess_hash;
 	int sess_count;
 	UT_hash_handle cmr_hh;
 	UT_hash_handle worker_hh;
 };
+
+#define cmr_chan_set_worker(_c, _w) (_c)->worker = (_w)
+#define cmr_chan_get_worker(_c) (_c)->worker
+#define cmr_chan_get_id(_c) (_c)->id
 
 #ifdef __cplusplus
 extern "C" {
