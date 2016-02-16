@@ -16,11 +16,19 @@ cmr_t *cmr_create(cmr_conf_t conf)
 	cmr_t *cmr = (cmr_t *)malloc(sizeof(cmr_t));
 	cmr->conf = conf;
 
+	cmr->portmgr = portmgr_create(conf.port_start, conf.port_end);
+	if(!cmr->portmgr) {
+		free(cmr);
+		return NULL;
+	}
+
 	for(i=0; i<cmr->conf.worker_count; i++) {
 		// create worker
 		cmr_worker_t *worker = cmr_worker_create(i);
 		if(!worker) {
 			_cmr_destroy_worker_pool(cmr);
+			portmgr_destroy(cmr->portmgr);
+			free(cmr);
 			return NULL;
 		}
 
@@ -31,6 +39,7 @@ cmr_t *cmr_create(cmr_conf_t conf)
 	}
 
 	cmr->chan_hash = NULL;
+
 	ortp_init();
 	ortp_scheduler_init();
 

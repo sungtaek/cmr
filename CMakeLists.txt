@@ -29,6 +29,7 @@ ADD_LIBRARY(
 	${CMR_SRC_PATH}/worker.c
 	${CMR_SRC_PATH}/channel.c
 	${CMR_SRC_PATH}/session.c
+	${CMR_SRC_PATH}/portmgr.c
 	${CMR_SRC_PATH}/util.c
 )
 TARGET_LINK_LIBRARIES(

@@ -4,8 +4,14 @@
 
 #include "cmr/session.h"
 
-cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
+cmr_sess_t *cmr_sess_create(cmr_t *cmr, const char *peer_ip, int peer_port, int mode)
 {
+	int port = -1;
+
+	if(!cmr) {
+		return NULL;
+	}
+
 	cmr_sess_t *sess = NULL;
 	sess = (cmr_sess_t*)malloc(sizeof(cmr_sess_t));
 	if(!sess) {
@@ -15,29 +21,22 @@ cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
 	sess->id = gen_unique_id();
 	sess->chan = NULL;
 	sess->mode = mode;
-	switch(mode) {
-		case SESS_MODE_SENDONLY:
-			sess->raw_sess = rtp_session_new(RTP_SESSION_SENDONLY);
-			break;
-		case SESS_MODE_RECVONLY:
-			sess->raw_sess = rtp_session_new(RTP_SESSION_RECVONLY);
-			break;
-		case SESS_MODE_SENDRECV:
-			sess->raw_sess = rtp_session_new(RTP_SESSION_SENDRECV);
-			break;
-		default:
-			printf("invalid mode(%d)\n", mode);
-			free(sess);
-			return NULL;
-	}
+	sess->raw_sess = rtp_session_new(RTP_SESSION_SENDRECV);
 	if(!sess->raw_sess) {
 		free(sess);
 		return NULL;
 	}
 
-	// TODO: set local ip, alloc  port
-	rtp_session_set_local_addr(sess->raw_sess, "0.0.0.0", 3600,3601);
-	rtp_Session_set_remote_addr(sess->raw_sess, peer_ip, peer_port);
+	port = portmgr_alloc(cmr->portmgr);
+	if(port < 0) {
+		rtp_session_destroy(sess->raw_sess);
+		free(sess);
+		return NULL;
+	}
+
+	rtp_session_set_local_addr(sess->raw_sess, "0.0.0.0", port, port+1);
+	rtp_session_set_remote_addr(sess->raw_sess, peer_ip, peer_port);
+	cmr_rwlock_init(&sess->lock, NULL);
 
 	return sess;
 }
@@ -50,6 +49,8 @@ void cmr_sess_destroy(cmr_sess_t *sess)
 			cmr_chan_remove_session(sess->chan, sess->id);
 		}
 		rtp_session_destroy(sess->raw_sess);
+
+		// TODO: return port
 		free(sess);
 	}
 }
@@ -60,21 +61,25 @@ int cmr_sess_set_mode(cmr_sess_t *sess, int mode)
 		return ERR_INVALID_PARAM;
 	}
 
-	// TODO: check namespace
-	// TODO: check rtp_session_init
-	if(mode != sess->mode) {
-		switch(mode) {
-			case SESS_MODE_SENDONLY:
-				rtp_session_init(sess->raw_sess, RTP_SESSION_SENDONLY);
-				break;
-			case SESS_MODE_RECVONLY:
-				rtp_session_init(sess->raw_sess, RTP_SESSION_RECVONLY);
-				break;
-			case SESS_MODE_SENDRECV:
-				rtp_session_init(sess->raw_sess, RTP_SESSION_SENDRECV);
-				break;
-		}
-	}
+	cmr_rwlock_wrlock(&sess->lock);
+	sess->mode = mode;
+	cmr_rwlock_unlock(&sess->lock);
+
 	return SUCC;
+}
+
+int cmr_sess_get_mode(cmr_sess_t *sess)
+{
+	int mode;
+
+	if(!sess) {
+		return ERR_INVALID_PARAM;
+	}
+
+	cmr_rwlock_rdlock(&sess->lock);
+	mode = sess->mode;
+	cmr_rwlock_unlock(&sess->lock);
+
+	return mode;
 }
 

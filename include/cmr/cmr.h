@@ -7,6 +7,7 @@ typedef struct _cmr cmr_t;
 #include "cmr/util.h"
 #include "cmr/worker.h"
 #include "cmr/channel.h"
+#include "cmr/portmgr.h"
 
 struct _cmr_conf {
 	int worker_count;
@@ -26,6 +27,7 @@ struct _cmr_conf {
 
 struct _cmr {
 	cmr_conf_t conf;
+	portmgr_t *portmgr;
 	cmr_worker_t *worker_pool;
 	cmr_chan_t *chan_hash;
 };
