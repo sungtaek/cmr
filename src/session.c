@@ -2,13 +2,14 @@
 
 #include "ortp/rtpsession.h"
 
+#include "cmr/cmr.h"
 #include "cmr/session.h"
 
-cmr_sess_t *cmr_sess_create(cmr_t *cmr, const char *peer_ip, int peer_port, int mode)
+cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
 {
 	int port = -1;
 
-	if(!cmr) {
+	if(!g_cmr.init) {
 		return NULL;
 	}
 
@@ -27,14 +28,14 @@ cmr_sess_t *cmr_sess_create(cmr_t *cmr, const char *peer_ip, int peer_port, int 
 		return NULL;
 	}
 
-	port = portmgr_alloc(cmr->portmgr);
+	port = portmgr_alloc(g_cmr.portmgr);
 	if(port < 0) {
 		rtp_session_destroy(sess->raw_sess);
 		free(sess);
 		return NULL;
 	}
 
-	rtp_session_set_local_addr(sess->raw_sess, "0.0.0.0", port, port+1);
+	rtp_session_set_local_addr(sess->raw_sess, g_cmr.conf.local_host, port, port+1);
 	rtp_session_set_remote_addr(sess->raw_sess, peer_ip, peer_port);
 	cmr_rwlock_init(&sess->lock, NULL);
 
@@ -43,15 +44,23 @@ cmr_sess_t *cmr_sess_create(cmr_t *cmr, const char *peer_ip, int peer_port, int 
 
 void cmr_sess_destroy(cmr_sess_t *sess)
 {
+	int port = -1;
+
+	if(!g_cmr.init) {
+		return;
+	}
+
 	if(sess) {
-		// TODO: check namespace
+		port = rtp_session_get_local_port(sess->raw_sess);
+
 		if(sess->chan) {
 			cmr_chan_remove_session(sess->chan, sess->id);
 		}
 		rtp_session_destroy(sess->raw_sess);
-
-		// TODO: return port
+		cmr_rwlock_destroy(&sess->lock);
 		free(sess);
+
+		portmgr_return(g_cmr.portmgr, port);
 	}
 }
 

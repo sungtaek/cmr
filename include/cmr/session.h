@@ -30,7 +30,7 @@ struct _cmr_sess {
 extern "C" {
 #endif
 
-cmr_sess_t *cmr_sess_create(cmr_t *cmr, const char *peer_ip, int peer_port, int mode);
+cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode);
 void cmr_sess_destroy(cmr_sess_t *sess);
 
 int cmr_sess_set_mode(cmr_sess_t *sess, int mode);

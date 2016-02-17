@@ -28,7 +28,6 @@ cmr_worker_t *cmr_worker_create(int idx)
 	}
 
 	worker->idx = idx;
-	worker->cmr = NULL;
 	worker->id = 0;
 	cmr_rwlock_init(&worker->lock, NULL);
 	cmr_mutex_init(&worker->cmd_lock, NULL);
@@ -74,8 +73,12 @@ void cmr_worker_destroy(cmr_worker_t *worker)
 
 int cmr_worker_start(cmr_worker_t *worker)
 {
+	if(!g_cmr.init) {
+		return ERR_NOT_INITIALIZED;
+	}
+
 	if(!worker) {
-		return;
+		return ERR_INVALID_PARAM;
 	}
 
 	if(worker->id) {
@@ -126,6 +129,10 @@ static void *_cmr_worker_stop_command(void *arg)
 
 void cmr_worker_stop(cmr_worker_t *worker)
 {
+	if(!g_cmr.init) {
+		return;
+	}
+
 	if(!worker) {
 		return;
 	}
@@ -308,7 +315,7 @@ static void *_cmr_worker_thread(void *arg)
 	worker->id = cmr_thread_self();
 
 	while(worker->id) {
-		// TUDO
+		// TODO: worker logic
 	}
 }
 

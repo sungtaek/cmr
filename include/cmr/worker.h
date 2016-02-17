@@ -11,7 +11,6 @@ typedef struct _cmr_worker cmr_worker_t;
 
 struct _cmr_worker {
 	int idx;
-	cmr_t *cmr;
 	cmr_thread_t thr;
 	unsigned long id;
 	cmr_rwlock_t lock;
@@ -23,9 +22,7 @@ struct _cmr_worker {
 	cmr_worker_t *next;
 };
 
-#define cmr_worker_set_cmr(_w, _c) (_w)->cmr = (_c)
 #define cmr_worker_set_next(_w, _n) (_w)->next = (_n)
-#define cmr_worker_get_cmr(_w) (_w)->cmr
 #define cmr_worker_get_next(_w) (_w)->next
 #define cmr_worker_get_idx(_w) (_w)->idx
 #define cmr_worker_get_chan_count(_w) (_w)->chan_count
