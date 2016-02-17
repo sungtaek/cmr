@@ -218,7 +218,7 @@ int cmr_worker_add_channel(cmr_worker_t *worker, cmr_chan_t *chan)
 	arg.chan = chan;
 
 	if(cmr_worker_is_run(worker)
-			&& cmr_worker_is_in_worker(worker)) {
+			&& !cmr_worker_is_in_worker(worker)) {
 		return (int)(long)cmr_worker_command(worker, _cmr_worker_add_channel, &arg);
 	}
 	return (int)(long)_cmr_worker_add_channel(&arg);
@@ -298,7 +298,7 @@ cmr_chan_t *cmr_worker_remove_channel(cmr_worker_t *worker, long long chan_id)
 	arg.worker = worker;
 	arg.chan_id = chan_id;
 	if(cmr_worker_is_run(worker)
-			&& cmr_worker_is_in_worker(worker)) {
+			&& !cmr_worker_is_in_worker(worker)) {
 		return (cmr_chan_t*)cmr_worker_command(worker, _cmr_worker_remove_channel, &arg);
 	}
 

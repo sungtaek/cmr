@@ -87,7 +87,7 @@ int cmr_chan_add_session(cmr_chan_t *chan, cmr_sess_t *sess)
 	arg.sess = sess;
 
 	if(cmr_worker_is_run(chan->worker)
-			&& cmr_worker_is_in_worker(chan->worker)) {
+			&& !cmr_worker_is_in_worker(chan->worker)) {
 		return (int)(long)cmr_worker_command(chan->worker, _cmr_chan_add_session, &arg);
 	}
 	return (int)(long)_cmr_chan_add_session(&arg);
@@ -167,7 +167,7 @@ cmr_sess_t *cmr_chan_remove_session(cmr_chan_t *chan, long long sess_id)
     arg.chan = chan;
     arg.sess_id = sess_id;
 	if(cmr_worker_is_run(chan->worker)
-			&& cmr_worker_is_in_worker(chan->worker)) {
+			&& !cmr_worker_is_in_worker(chan->worker)) {
 		return (cmr_sess_t*)cmr_worker_command(chan->worker, _cmr_chan_remove_session, &arg);
 	}
 	
