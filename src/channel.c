@@ -16,7 +16,6 @@ cmr_chan_t *cmr_chan_create()
 	chan->worker = NULL;
 	cmr_rwlock_init(&chan->lock, NULL);
 	chan->sess_hash = NULL;
-	chan->sess_count = 0;
 
 	return chan;
 }
@@ -53,10 +52,11 @@ typedef struct _add_sess_arg {
 	cmr_sess_t *sess;
 } add_sess_arg_t;
 
-static void *_cmr_chan_add_session(void *arg)
+static void *_cmr_chan_add_session(cmr_worker_t *worker, void *arg)
 {
 	cmr_chan_t *chan = ((add_sess_arg_t*)arg)->chan;
 	cmr_sess_t *sess = ((add_sess_arg_t*)arg)->sess;
+	int count = 0;
 
 	if(cmr_sess_get_chan(sess) != NULL) {
 		return (void*)ERR_ALREADY_USED;
@@ -69,10 +69,14 @@ static void *_cmr_chan_add_session(void *arg)
 	cmr_rwlock_wrlock(&chan->lock);
 	HASH_ADD(chan_hh, chan->sess_hash, id, sizeof(sess->id), sess);
 	cmr_sess_set_chan(sess, chan);
-	chan->sess_count++;
+	count = HASH_CNT(chan_hh, chan->sess_hash);
 	cmr_rwlock_unlock(&chan->lock);
+
+	if(!worker) {
+		cmr_worker_register_session(worker, sess);
+	}
 	
-	return (void*)(long)chan->sess_count;
+	return (void*)(long)count;
 }
 
 int cmr_chan_add_session(cmr_chan_t *chan, cmr_sess_t *sess)
@@ -90,7 +94,7 @@ int cmr_chan_add_session(cmr_chan_t *chan, cmr_sess_t *sess)
 			&& !cmr_worker_is_in_worker(chan->worker)) {
 		return (int)(long)cmr_worker_command(chan->worker, _cmr_chan_add_session, &arg);
 	}
-	return (int)(long)_cmr_chan_add_session(&arg);
+	return (int)(long)_cmr_chan_add_session(NULL, &arg);
 }
 
 cmr_sess_t *cmr_chan_get_session(cmr_chan_t *chan, long long sess_id)
@@ -137,7 +141,7 @@ typedef struct _remove_sess_arg {
 	long long sess_id;
 } remove_sess_arg_t;
 
-static void *_cmr_chan_remove_session(void *arg)
+static void *_cmr_chan_remove_session(cmr_worker_t *worker, void *arg)
 {
 	cmr_chan_t *chan = ((remove_sess_arg_t*)arg)->chan;
 	long long sess_id = ((remove_sess_arg_t*)arg)->sess_id;
@@ -145,11 +149,15 @@ static void *_cmr_chan_remove_session(void *arg)
 	
 	sess = cmr_chan_get_session(chan, sess_id);
 	if(sess) {
+		if(!worker) {
+			cmr_worker_unregister_session(worker, sess);
+		}
+
 		cmr_rwlock_wrlock(&chan->lock);
 		HASH_DELETE(chan_hh, chan->sess_hash, sess);
 		cmr_sess_set_chan(sess, NULL);
-		chan->sess_count--;
 		cmr_rwlock_unlock(&chan->lock);
+
 		return sess;
 	}
 
@@ -171,7 +179,15 @@ cmr_sess_t *cmr_chan_remove_session(cmr_chan_t *chan, long long sess_id)
 		return (cmr_sess_t*)cmr_worker_command(chan->worker, _cmr_chan_remove_session, &arg);
 	}
 	
-	return (cmr_sess_t*)_cmr_chan_remove_session(&arg);
+	return (cmr_sess_t*)_cmr_chan_remove_session(NULL, &arg);
 }
 
+int cmr_chan_get_session_count(cmr_chan_t *chan)
+{
+	if(!chan) {
+		return ERR_INVALID_PARAM;
+	}
+
+	return HASH_CNT(chan_hh, chan->sess_hash);
+}
 

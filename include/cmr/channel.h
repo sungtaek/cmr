@@ -12,7 +12,6 @@ struct _cmr_chan {
 	cmr_worker_t *worker;
 	cmr_rwlock_t lock;
 	cmr_sess_t *sess_hash;
-	int sess_count;
 	UT_hash_handle cmr_hh;
 	UT_hash_handle worker_hh;
 };
@@ -33,6 +32,7 @@ int cmr_chan_add_session(cmr_chan_t *chan, cmr_sess_t *sess);
 cmr_sess_t *cmr_chan_get_session(cmr_chan_t *chan, long long sess_id);
 int cmr_chan_get_all_session(cmr_chan_t *chan, cmr_sess_t **sess_list, int list_len);
 cmr_sess_t *cmr_chan_remove_session(cmr_chan_t *chan, long long sess_id);
+int cmr_chan_get_session_count(cmr_chan_t *chan);
 
 
 #ifdef __cplusplus

@@ -103,7 +103,7 @@ int cmr_add_channel(cmr_chan_t *chan)
 	worker = g_cmr.worker_pool;
 	while(worker) {
 		if(min_worker) {
-			if(cmr_worker_get_chan_count(min_worker) > cmr_worker_get_chan_count(worker)) {
+			if(cmr_worker_get_session_count(min_worker) > cmr_worker_get_session_count(worker)) {
 				min_worker = worker;
 			}
 		}

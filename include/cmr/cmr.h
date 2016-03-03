@@ -9,6 +9,7 @@ typedef struct _cmr cmr_t;
 #include "cmr/channel.h"
 #include "cmr/portmgr.h"
 
+
 struct _cmr_conf {
 	char *local_host;
 	char *public_host;

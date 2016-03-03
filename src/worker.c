@@ -7,7 +7,7 @@
 
 
 typedef struct _cmr_cmd_req {
-	void *(*command)(void*);
+	void *(*command)(cmr_worker_t*, void*);
 	void *arg;
 } cmr_cmd_req_t;
 
@@ -31,17 +31,12 @@ cmr_worker_t *cmr_worker_create(int idx)
 	worker->id = 0;
 	cmr_rwlock_init(&worker->lock, NULL);
 	cmr_mutex_init(&worker->cmd_lock, NULL);
-	worker->cmd_pipe[0] = -1;
-	worker->cmd_pipe[1] = -1;
-	worker->sess_set = session_set_new();
-	if(!worker->sess_set) {
-		cmr_rwlock_destroy(&worker->lock);
-		cmr_mutex_destroy(&worker->cmd_lock);
-		free(worker);
-		return NULL;
-	}
-	worker->chan_count = 0;
+	worker->cmd_req_pipe[0] = -1;
+	worker->cmd_req_pipe[1] = -1;
+	worker->cmd_resp_pipe[0] = -1;
+	worker->cmd_resp_pipe[1] = -1;
 	worker->chan_hash = NULL;
+	worker->sess_hash = NULL;
 	worker->next = NULL;
 
 	return worker;
@@ -111,15 +106,17 @@ int cmr_worker_is_in_worker(cmr_worker_t *worker)
 	return 0;
 }
 
-static void *_cmr_worker_stop_command(void *arg)
+static void *_cmr_worker_stop_command(cmr_worker_t *worker, void *arg)
 {
-	cmr_worker_t *worker = (cmr_worker_t*)arg;
-
 	// close cmd_pipe
-	close(worker->cmd_pipe[0]);
-	close(worker->cmd_pipe[1]);
-	worker->cmd_pipe[0] = -1;
-	worker->cmd_pipe[1] = -1;
+	close(worker->cmd_req_pipe[0]);
+	close(worker->cmd_req_pipe[1]);
+	close(worker->cmd_resp_pipe[0]);
+	close(worker->cmd_resp_pipe[1]);
+	worker->cmd_req_pipe[0] = -1;
+	worker->cmd_req_pipe[1] = -1;
+	worker->cmd_resp_pipe[0] = -1;
+	worker->cmd_resp_pipe[1] = -1;
 
 	// disable worker
 	worker->id = 0;
@@ -142,14 +139,14 @@ void cmr_worker_stop(cmr_worker_t *worker)
 	}
 
 	if(cmr_worker_is_in_worker(worker)){
-		_cmr_worker_stop_command(worker);
+		_cmr_worker_stop_command(worker, NULL);
 	}
 	else {
-		cmr_worker_command(worker, _cmr_worker_stop_command, worker);
+		cmr_worker_command(worker, _cmr_worker_stop_command, NULL);
 	}
 }
 
-void *cmr_worker_command(cmr_worker_t *worker, void *(*command)(void *), void *arg)
+void *cmr_worker_command(cmr_worker_t *worker, void *(*command)(cmr_worker_t*, void *), void *arg)
 {
 	cmr_cmd_req_t req;
 	cmr_cmd_resp_t resp;
@@ -164,12 +161,12 @@ void *cmr_worker_command(cmr_worker_t *worker, void *(*command)(void *), void *a
 
 	cmr_mutex_lock(&worker->cmd_lock);
 
-	if(write(worker->cmd_pipe[0], &req, sizeof(cmr_cmd_req_t)) < 0) {
+	if(write(worker->cmd_req_pipe[1], &req, sizeof(cmr_cmd_req_t)) < 0) {
 		cmr_mutex_unlock(&worker->cmd_lock);
 		return NULL;
 	}
 
-	if(read(worker->cmd_pipe[0], &resp, sizeof(cmr_cmd_resp_t)) < 0) {
+	if(read(worker->cmd_resp_pipe[0], &resp, sizeof(cmr_cmd_resp_t)) < 0) {
 		cmr_mutex_unlock(&worker->cmd_lock);
 		return NULL;
 	}
@@ -179,15 +176,12 @@ void *cmr_worker_command(cmr_worker_t *worker, void *(*command)(void *), void *a
 	return resp.result;
 }
 
-typedef struct _add_chan_arg {
-	cmr_worker_t *worker;
-	cmr_chan_t *chan;
-} add_chan_arg_t;
-
-static void *_cmr_worker_add_channel(void *arg)
+static void *_cmr_worker_add_channel(cmr_worker_t *worker, void *arg)
 {
-	cmr_worker_t *worker = ((add_chan_arg_t*)arg)->worker;
-	cmr_chan_t *chan = ((add_chan_arg_t*)arg)->chan;
+	cmr_chan_t *chan = (cmr_chan_t*)arg;
+	int count = 0;
+	cmr_sess_t *sess = NULL;
+	cmr_sess_t *stmp = NULL;
 
 	if(cmr_chan_get_worker(chan) != NULL) {
 		return (void*)ERR_ALREADY_USED;
@@ -200,28 +194,27 @@ static void *_cmr_worker_add_channel(void *arg)
 	cmr_rwlock_wrlock(&worker->lock);
 	HASH_ADD(worker_hh, worker->chan_hash, id, sizeof(chan->id), chan);
 	cmr_chan_set_worker(chan, worker);
-	worker->chan_count++;
+	count = HASH_CNT(worker_hh, worker->chan_hash);
 	cmr_rwlock_unlock(&worker->lock);
 
-	return (void*)(long)worker->chan_count;
+	HASH_ITER(chan_hh, chan->sess_hash, sess, stmp) {
+		cmr_worker_register_session(worker, sess);
+	}
+
+	return (void*)(long)count;
 }
 
 int cmr_worker_add_channel(cmr_worker_t *worker, cmr_chan_t *chan)
 {
-	add_chan_arg_t arg;
-
 	if(!worker || !chan) {
 		return ERR_INVALID_PARAM;
 	}
 
-	arg.worker = worker;
-	arg.chan = chan;
-
 	if(cmr_worker_is_run(worker)
 			&& !cmr_worker_is_in_worker(worker)) {
-		return (int)(long)cmr_worker_command(worker, _cmr_worker_add_channel, &arg);
+		return (int)(long)cmr_worker_command(worker, _cmr_worker_add_channel, chan);
 	}
-	return (int)(long)_cmr_worker_add_channel(&arg);
+	return (int)(long)_cmr_worker_add_channel(worker, chan);
 }
 
 cmr_chan_t *cmr_worker_get_channel(cmr_worker_t *worker, long long chan_id)
@@ -263,24 +256,25 @@ int cmr_worker_get_all_channel(cmr_worker_t *worker, cmr_chan_t **chan_list, int
 	return len;
 }
 
-typedef struct _remove_chan_arg {
-	cmr_worker_t *worker;
-	long long chan_id;
-} remove_chan_arg_t;
-
-static void *_cmr_worker_remove_channel(void *arg)
+static void *_cmr_worker_remove_channel(cmr_worker_t *worker, void *arg)
 {
-	cmr_worker_t *worker = ((remove_chan_arg_t*)arg)->worker;
-	long long chan_id = ((remove_chan_arg_t*)arg)->chan_id;
+	long long chan_id = (long long)arg;
 	cmr_chan_t *chan = NULL;
 
 	chan = cmr_worker_get_channel(worker, chan_id);
 	if(chan) {
+		cmr_sess_t *sess = NULL;
+		cmr_sess_t *stmp = NULL;
+		
+		HASH_ITER(chan_hh, chan->sess_hash, sess, stmp) {
+			cmr_worker_unregister_session(worker, sess);
+		}
+
 		cmr_rwlock_wrlock(&worker->lock);
 		HASH_DELETE(worker_hh, worker->chan_hash, chan);
 		cmr_chan_set_worker(chan, NULL);
-		worker->chan_count--;
 		cmr_rwlock_unlock(&worker->lock);
+
 		return chan;
 	}
 
@@ -289,33 +283,166 @@ static void *_cmr_worker_remove_channel(void *arg)
 
 cmr_chan_t *cmr_worker_remove_channel(cmr_worker_t *worker, long long chan_id)
 {
-	remove_chan_arg_t arg;
-
 	if(!worker) {
 		return NULL;
 	}
 
-	arg.worker = worker;
-	arg.chan_id = chan_id;
 	if(cmr_worker_is_run(worker)
 			&& !cmr_worker_is_in_worker(worker)) {
-		return (cmr_chan_t*)cmr_worker_command(worker, _cmr_worker_remove_channel, &arg);
+		return (cmr_chan_t*)cmr_worker_command(worker, _cmr_worker_remove_channel, (void*)chan_id);
 	}
 
-	return (cmr_chan_t*)_cmr_worker_remove_channel(&arg);
+	return (cmr_chan_t*)_cmr_worker_remove_channel(worker, (void*)chan_id);
 }
 
+int cmr_worker_get_channel_count(cmr_worker_t *worker)
+{
+	if(!worker) {
+		return ERR_INVALID_PARAM;
+	}
 
+	return HASH_CNT(worker_hh, worker->chan_hash);
+}
+
+static void *_cmr_worker_register_sessions(cmr_worker_t *worker, void *arg)
+{
+	cmr_sess_t *sess = (cmr_sess_t*)arg;
+	int count;
+
+	cmr_rwlock_wrlock(&worker->lock);
+	HASH_ADD(worker_hh, worker->sess_hash, id, sizeof(sess->id), sess);
+	count = HASH_CNT(worker_hh, worker->sess_hash);
+	cmr_rwlock_unlock(&worker->lock);
+
+	return (void*)(long)count;
+}
+
+int cmr_worker_register_session(cmr_worker_t *worker, cmr_sess_t *sess)
+{
+	if(!worker || !sess) {
+		return ERR_INVALID_PARAM;
+	}
+
+	if(cmr_worker_is_run(worker)
+			&& !cmr_worker_is_in_worker(worker)) {
+		return (int)(long)cmr_worker_command(worker, _cmr_worker_register_sessions, sess);
+	}
+	return (int)(long)_cmr_worker_register_sessions(worker, sess);
+}
+
+static void *_cmr_worker_unregister_sessions(cmr_worker_t *worker, void *arg)
+{
+	cmr_sess_t *sess = (cmr_sess_t*)arg;
+	int count;
+
+	cmr_rwlock_wrlock(&worker->lock);
+	HASH_DELETE(worker_hh, worker->sess_hash, sess);
+	count = HASH_CNT(worker_hh, worker->sess_hash);
+	cmr_rwlock_unlock(&worker->lock);
+
+	return (void*)(long)count;
+}
+
+int cmr_worker_unregister_session(cmr_worker_t *worker, cmr_sess_t *sess)
+{
+	if(!worker || !sess) {
+		return ERR_INVALID_PARAM;
+	}
+
+	if(cmr_worker_is_run(worker)
+			&& !cmr_worker_is_in_worker(worker)) {
+		return (int)(long)cmr_worker_command(worker, _cmr_worker_unregister_sessions, sess);
+	}
+	return (int)(long)_cmr_worker_unregister_sessions(worker, sess);
+}
+
+int cmr_worker_get_session_count(cmr_worker_t *worker)
+{
+	if(!worker) {
+		return ERR_INVALID_PARAM;
+	}
+
+	return HASH_CNT(worker_hh, worker->sess_hash);
+}
+
+static void _cmr_worker_relay_packet(cmr_worker_t *worker, cmr_sess_t *sess)
+{
+	// TODO
+}
+
+static void _cmr_worker_drop_packet(cmr_worker_t *worker, cmr_sess_t *sess)
+{
+	// TODO
+}
+
+static void _cmr_worker_proc_command(cmr_worker_t *worker)
+{
+	cmr_cmd_req_t req;
+	cmr_cmd_resp_t resp;
+
+	if(read(worker->cmd_req_pipe[0], &req, sizeof(cmr_cmd_req_t)) < 0) {
+		return;
+	}
+
+	resp.result = req.command(worker, req.arg);
+
+	if(write(worker->cmd_resp_pipe[1], &resp, sizeof(cmr_cmd_resp_t)) < 0) {
+		return;
+	}
+}
 
 static void *_cmr_worker_thread(void *arg)
 {
 	cmr_worker_t *worker = (cmr_worker_t*) arg;
+	SessionSet *sess_set = session_set_new();
 
-	pipe(worker->cmd_pipe);
+	pipe(worker->cmd_req_pipe);
+	pipe(worker->cmd_resp_pipe);
 	worker->id = cmr_thread_self();
 
 	while(worker->id) {
-		// TODO: worker logic
+		int k;
+		cmr_sess_t *sess=NULL;
+		cmr_sess_t *stmp=NULL;
+
+		session_set_init(sess_set);
+
+		// add channel's session to session_set
+		cmr_rwlock_rdlock(&worker->lock);
+		HASH_ITER(worker_hh, worker->sess_hash, sess, stmp) {
+			session_set_set(sess_set, sess->raw_sess);
+		}
+		cmr_rwlock_unlock(&worker->lock);
+
+		// add command pipe to session_set
+		ORTP_FD_SET(worker->cmd_req_pipe[0], &sess_set->rtpset);
+
+		k = session_set_select(sess_set, NULL, NULL);
+		if(k > 0) {
+
+			// proc sess packet
+			HASH_ITER(worker_hh, worker->sess_hash, sess, stmp) {
+				if(session_set_is_set(sess_set, cmr_sess_get_rawsess(sess))) {
+					switch(cmr_sess_get_mode(sess)) {
+						case SESS_MODE_SENDONLY:
+						case SESS_MODE_SENDRECV:
+							// relay packet
+							_cmr_worker_relay_packet(worker, sess);
+							break;
+						default:
+							// drop packet
+							_cmr_worker_drop_packet(worker, sess);
+							break;
+					}
+				}
+			}
+
+			// proc command
+			if(ORTP_FD_ISSET(worker->cmd_req_pipe[0], &sess_set->rtpset)) {
+				_cmr_worker_proc_command(worker);
+			}
+		}
+
 	}
 }
 
