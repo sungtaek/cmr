@@ -16,6 +16,8 @@ cmr_chan_t *cmr_chan_create()
 	chan->worker = NULL;
 	cmr_rwlock_init(&chan->lock, NULL);
 	chan->sess_hash = NULL;
+	chan->ts = 0;
+	chan->buf = ortp_malloc(g_cmr.conf.packet_size);
 
 	return chan;
 }
@@ -41,6 +43,7 @@ void cmr_chan_destroy(cmr_chan_t *chan)
 		}
 
 		cmr_rwlock_destroy(&chan->lock);
+		ortp_free(chan->buf);
 		free(chan);
 	}
 }

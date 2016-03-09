@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <search.h>
+#include <sys/time.h>
 
 #include "cmr/util.h"
 
@@ -23,4 +23,16 @@ unsigned long __cmr_thread_self(void)
 	return (unsigned long)pthread_self();
 }
 
+
+static unsigned long g_seq = 0;
+unsigned long gen_unique_id()
+{
+	struct timeval t;
+	unsigned long id;
+	unsigned long seq = ++g_seq;
+	gettimeofday(&t,NULL);
+	id = (t.tv_sec * 1000 * 1000) + (t.tv_usec * 1000) << 42;
+	id |= (seq % 16777216) << 24;
+	return id;
+}
 

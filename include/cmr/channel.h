@@ -8,10 +8,12 @@ typedef struct _cmr_chan cmr_chan_t;
 #include "cmr/worker.h"
 
 struct _cmr_chan {
-	long long id;
+	unsigned long id;
 	cmr_worker_t *worker;
 	cmr_rwlock_t lock;
 	cmr_sess_t *sess_hash;
+	uint32_t ts;
+	unsigned char *buf;
 	UT_hash_handle cmr_hh;
 	UT_hash_handle worker_hh;
 };

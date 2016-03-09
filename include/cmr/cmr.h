@@ -18,6 +18,8 @@ struct _cmr_conf {
 	int max_sess_per_thr;
 	int port_start;
 	int port_end;
+	int packet_size;
+	int inc_ts;
 };
 
 #define CMR_CONF_DEFAULT(_c) { \
@@ -28,6 +30,8 @@ struct _cmr_conf {
 	(_c).max_sess_per_thr = -1; \
 	(_c).port_start = 49152; \
 	(_c).port_end = 65535; \
+	(_c).packet_size = 160; \
+	(_c).inc_ts = 160; \
 }
 
 struct _cmr {

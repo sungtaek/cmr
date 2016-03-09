@@ -15,6 +15,8 @@ typedef struct _cmr_cmd_resp {
 	void *result;
 } cmr_cmd_resp_t;
 
+#define CMR_BUF_SIZE	160
+
 static void *_cmr_worker_thread(void *arg);
 
 cmr_worker_t *cmr_worker_create(int idx)
@@ -367,12 +369,51 @@ int cmr_worker_get_session_count(cmr_worker_t *worker)
 
 static void _cmr_worker_relay_packet(cmr_worker_t *worker, cmr_sess_t *sess)
 {
-	// TODO
+	cmr_chan_t *chan = cmr_sess_get_chan(sess);
+	mblk_t *mp = NULL;
+	mblk_t *dmp = NULL;
+
+	RtpSession *rcv_rawsess = cmr_sess_get_rawsess(sess);
+	int packet_size = g_cmr.conf.packet_size;
+
+	do {
+		mp = rtp_session_recvm_with_ts(rcv_rawsess, chan->ts);
+		if(mp != NULL) {
+			cmr_sess_t *snd_sess = NULL;
+			cmr_sess_t *stmp = NULL;
+
+			//printf("recv (%lu) %d bytes\n", sess->id, msgdsize(mp));
+
+			cmr_rwlock_rdlock(&chan->lock);
+			HASH_ITER(chan_hh, chan->sess_hash, snd_sess, stmp) {
+				RtpSession *snd_rawsess = cmr_sess_get_rawsess(snd_sess);
+				if(snd_sess != sess && cmr_sess_get_mode(snd_sess) != SESS_MODE_SENDONLY) {
+					dmp = copymsg(mp);
+					//printf("send (%lu) %d bytes\n", snd_sess->id, msgdsize(dmp));
+					rtp_session_sendm_with_ts(snd_rawsess, dmp, chan->ts);
+				}
+			}
+			cmr_rwlock_unlock(&chan->lock);
+			freemsg(mp);
+		}
+	} while(mp != NULL);
+	chan->ts += g_cmr.conf.inc_ts;
 }
 
 static void _cmr_worker_drop_packet(cmr_worker_t *worker, cmr_sess_t *sess)
 {
-	// TODO
+	cmr_chan_t *chan = cmr_sess_get_chan(sess);
+	mblk_t *mp = NULL;
+
+	RtpSession *rcv_rawsess = cmr_sess_get_rawsess(sess);
+	int packet_size = g_cmr.conf.packet_size;
+
+	do {
+		mp = rtp_session_recvm_with_ts(rcv_rawsess, chan->ts);
+		if(mp != NULL) {
+			freemsg(mp);
+		}
+	} while(mp != NULL);
 }
 
 static void _cmr_worker_proc_command(cmr_worker_t *worker)
@@ -408,6 +449,7 @@ static void *_cmr_worker_thread(void *arg)
 		session_set_init(sess_set);
 
 		// add channel's session to session_set
+		//printf("regi sess count: %d\n", HASH_CNT(worker_hh, worker->sess_hash));
 		cmr_rwlock_rdlock(&worker->lock);
 		HASH_ITER(worker_hh, worker->sess_hash, sess, stmp) {
 			session_set_set(sess_set, sess->raw_sess);
@@ -415,14 +457,18 @@ static void *_cmr_worker_thread(void *arg)
 		cmr_rwlock_unlock(&worker->lock);
 
 		// add command pipe to session_set
-		ORTP_FD_SET(worker->cmd_req_pipe[0], &sess_set->rtpset);
+		//ORTP_FD_SET(worker->cmd_req_pipe[0], &sess_set->rtpset);
 
+		//printf("try...\n");
+		printf("[%d]try select...\n", worker->idx);
 		k = session_set_select(sess_set, NULL, NULL);
-		if(k > 0) {
+		printf("[%d]selected %d\n", worker->idx, k);
 
+		if(k > 0) {
 			// proc sess packet
 			HASH_ITER(worker_hh, worker->sess_hash, sess, stmp) {
 				if(session_set_is_set(sess_set, cmr_sess_get_rawsess(sess))) {
+					//printf("recv sess(%lu)\n", sess->id);
 					switch(cmr_sess_get_mode(sess)) {
 						case SESS_MODE_SENDONLY:
 						case SESS_MODE_SENDRECV:
@@ -438,10 +484,13 @@ static void *_cmr_worker_thread(void *arg)
 			}
 
 			// proc command
+			/*
 			if(ORTP_FD_ISSET(worker->cmd_req_pipe[0], &sess_set->rtpset)) {
 				_cmr_worker_proc_command(worker);
 			}
+			*/
 		}
+		sleep(1);
 
 	}
 }

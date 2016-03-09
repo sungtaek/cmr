@@ -14,7 +14,7 @@ typedef struct _cmr_sess cmr_sess_t;
 #define SESS_MODE_SENDRECV	3
 
 struct _cmr_sess {
-	long long id;
+	unsigned long id;
 	cmr_chan_t *chan;
 	int mode;
 	RtpSession *raw_sess;

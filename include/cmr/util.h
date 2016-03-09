@@ -67,7 +67,7 @@ unsigned long __cmr_thread_self(void);
 extern "C" {
 #endif
 
-long long gen_unique_id();
+unsigned long gen_unique_id();
 
 #ifdef __cplusplus
 }

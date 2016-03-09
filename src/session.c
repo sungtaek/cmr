@@ -35,8 +35,17 @@ cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
 		return NULL;
 	}
 
+	rtp_session_set_scheduling_mode(sess->raw_sess, 1);
+	rtp_session_set_blocking_mode(sess->raw_sess, 0);
 	rtp_session_set_local_addr(sess->raw_sess, g_cmr.conf.local_host, port, port+1);
-	rtp_session_set_remote_addr(sess->raw_sess, peer_ip, peer_port);
+	//rtp_session_set_connected_mode(sess->raw_sess, TRUE);
+	rtp_session_set_symmetric_rtp(sess->raw_sess, TRUE);
+	if(peer_ip != NULL && peer_port > 0) {
+		rtp_session_set_remote_addr(sess->raw_sess, peer_ip, peer_port);
+	}
+	rtp_session_set_payload_type(sess->raw_sess, 10);
+	//rtp_session_set_recv_buf_size(sess->raw_sess,256);
+
 	cmr_rwlock_init(&sess->lock, NULL);
 
 	return sess;
