@@ -358,7 +358,6 @@ static void _cmr_process_relay_packet(cmr_sess_t *sess)
 	mblk_t *dmp = NULL;
 
 	RtpSession *rcv_rawsess = cmr_sess_get_rawsess(sess);
-	int packet_size = g_conf.packet_size;
 
 	do {
 		mp = rtp_session_recvm_with_ts(rcv_rawsess, chan->ts);
@@ -389,7 +388,6 @@ static void _cmr_process_drop_packet(cmr_sess_t *sess)
 	mblk_t *mp = NULL;
 
 	RtpSession *rcv_rawsess = cmr_sess_get_rawsess(sess);
-	int packet_size = g_conf.packet_size;
 
 	do {
 		mp = rtp_session_recvm_with_ts(rcv_rawsess, chan->ts);
