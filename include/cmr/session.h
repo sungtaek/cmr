@@ -20,7 +20,7 @@ struct _cmr_sess {
 	RtpSession *raw_sess;
 	cmr_rwlock_t lock;
 	UT_hash_handle chan_hh;
-	UT_hash_handle worker_hh;
+	UT_hash_handle cmr_hh;
 };
 
 #define cmr_sess_set_chan(_s, _c) (_s)->chan = (_c)

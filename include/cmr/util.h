@@ -50,6 +50,7 @@ unsigned long __cmr_thread_self(void);
 #define cmr_cond_signal        pthread_cond_signal
 #define cmr_cond_broadcast     pthread_cond_broadcast
 #define cmr_cond_wait          pthread_cond_wait
+#define cmr_cond_timedwait     pthread_cond_timedwait
 #define cmr_cond_destroy       pthread_cond_destroy
 
 #define SUCC				0

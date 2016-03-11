@@ -9,7 +9,7 @@
 int main(int argc, char **argv)
 {
 	int ret, i;
-	cmr_chan_t *chan[3];
+	cmr_chan_t *chan;
 	cmr_sess_t *sess[100];
 	int sess_cnt = 0;
 
@@ -51,17 +51,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	chan[0] = cmr_chan_create();
-	chan[1] = cmr_chan_create();
-	chan[2] = cmr_chan_create();
+	chan = cmr_chan_create();
 
-	cmr_chan_add_session(chan[0], sess[1]);
-	cmr_chan_add_session(chan[1], sess[1]);
-	cmr_chan_add_session(chan[2], sess[2]);
+	cmr_chan_add_session(chan, sess[0]);
+	cmr_chan_add_session(chan, sess[1]);
+	cmr_chan_add_session(chan, sess[2]);
 
-	cmr_add_channel(chan[0]);
-	cmr_add_channel(chan[1]);
-	cmr_add_channel(chan[2]);
+	cmr_add_channel(chan);
 
 	ret = cmr_start();
 	if(ret < 0) {

@@ -1,96 +1,100 @@
 #include <stdio.h>
 
-#include "cmr/portmgr.h"
+#include "cmr/util.h"
 
-portmgr_t *portmgr_create(int start_port, int end_port)
+#include "portmgr.h"
+
+typedef struct _portmgr {
+	int init;
+	int start_port;
+	int end_port;
+	int range;
+	int idx;
+	char *pool;
+	cmr_mutex_t lock;
+} portmgr_t;
+
+portmgr_t g_portmgr;
+
+int portmgr_init(int start_port, int end_port)
 {
 	int i;
-	portmgr_t *portmgr = NULL;
 
-	portmgr = (portmgr_t*)malloc(sizeof(portmgr_t));
-	if(!portmgr) {
-		return NULL;
+	if(g_portmgr.init) {
+		return ERR_ALREADY_INITIALIZED;
 	}
 
-	portmgr->start_port = start_port;
-	portmgr->end_port = end_port;
-	portmgr->range = (end_port+1-start_port) - ((end_port+1-start_port)%2);
-	if(portmgr->range < 2) {
+	g_portmgr.start_port = start_port;
+	g_portmgr.end_port = end_port;
+	g_portmgr.range = (end_port+1-start_port) - ((end_port+1-start_port)%2);
+	if(g_portmgr.range < 2) {
 		printf("invalid port range[%d ~ %d]\n",
 				start_port, end_port);
-		free(portmgr);
-		return NULL;
+		return ERR_INVALID_PARAM;
 	}
-	portmgr->idx = 0;
-	portmgr->pool = (char*)malloc(portmgr->range);
-	if(!portmgr->pool) {
-		free(portmgr);
-		return NULL;
+	g_portmgr.idx = 0;
+	g_portmgr.pool = (char*)malloc(g_portmgr.range);
+	if(!g_portmgr.pool) {
+		return ERR_SYSTEM_MEMORY;
 	}
-	for(i=0; i<portmgr->range; i++) {
-		portmgr->pool[i] = 0;
+	for(i=0; i<g_portmgr.range; i++) {
+		g_portmgr.pool[i] = 0;
 	}
-	cmr_mutex_init(&portmgr->lock, NULL);
+	cmr_mutex_init(&g_portmgr.lock, NULL);
 
-	return portmgr;
+	g_portmgr.init = 1;
+
+	return SUCC;
 }
 
-void portmgr_destroy(portmgr_t *portmgr)
-{
-	if(portmgr) {
-		free(portmgr->pool);
-		cmr_mutex_destroy(&portmgr->lock);
-		free(portmgr);
-	}
-}
-
-int portmgr_alloc(portmgr_t *portmgr)
+int portmgr_alloc()
 {
 	int port = 0;
 	int cur = -1;
 
-	if(!portmgr) {
-		return ERR_INVALID_PARAM;
+	if(!g_portmgr.init) {
+		return ERR_NOT_INITIALIZED;
 	}
 
-	cmr_mutex_lock(&portmgr->lock);
-	cur = portmgr->idx;
-	while(portmgr->pool[portmgr->idx]) {
-		portmgr->idx = (portmgr->idx + 2)%portmgr->range;
-		if(cur == portmgr->idx)
+	cmr_mutex_lock(&g_portmgr.lock);
+	cur = g_portmgr.idx;
+	while(g_portmgr.pool[g_portmgr.idx]) {
+		g_portmgr.idx = (g_portmgr.idx + 2)%g_portmgr.range;
+		if(cur == g_portmgr.idx)
 			break;
 	}
-	if(portmgr->pool[portmgr->idx]) {
+	if(g_portmgr.pool[g_portmgr.idx]) {
 		port = ERR_PORT_FULL;
 	}
 	else {
-		port = portmgr->start_port + portmgr->idx;
-		portmgr->pool[portmgr->idx] = 1;
-		portmgr->pool[portmgr->idx+1] = 1;
+		port = g_portmgr.start_port + g_portmgr.idx;
+		g_portmgr.pool[g_portmgr.idx] = 1;
+		g_portmgr.pool[g_portmgr.idx+1] = 1;
 	}
-	cmr_mutex_unlock(&portmgr->lock);
+	cmr_mutex_unlock(&g_portmgr.lock);
 
 	printf("alloc port[%d,%d]\n", port, port+1);
 	return port;
 }
 
-void portmgr_return(portmgr_t *portmgr, int port)
+void portmgr_return(int port)
 {
 	int idx;
 
-	if(!portmgr) {
+	if(!g_portmgr.init) {
 		return;
 	}
 
-	if(port < portmgr->start_port || port > portmgr->end_port) {
+	if(port < g_portmgr.start_port || port > g_portmgr.end_port) {
 		return;
 	}
-	idx = port - portmgr->start_port;
+	idx = port - g_portmgr.start_port;
 
-	cmr_mutex_lock(&portmgr->lock);
-	portmgr->pool[idx] = 0;
-	portmgr->pool[idx+1] = 0;
-	cmr_mutex_unlock(&portmgr->lock);
+	cmr_mutex_lock(&g_portmgr.lock);
+	g_portmgr.pool[idx] = 0;
+	g_portmgr.pool[idx+1] = 0;
+	cmr_mutex_unlock(&g_portmgr.lock);
 
 	printf("return port[%d,%d]\n", port, port+1);
 }
+

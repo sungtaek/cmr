@@ -5,11 +5,13 @@
 #include "cmr/cmr.h"
 #include "cmr/session.h"
 
+extern cmr_conf_t g_conf;
+
 cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
 {
 	int port = -1;
 
-	if(!g_cmr.init) {
+	if(!cmr_is_init()) {
 		return NULL;
 	}
 
@@ -28,7 +30,7 @@ cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
 		return NULL;
 	}
 
-	port = portmgr_alloc(g_cmr.portmgr);
+	port = portmgr_alloc();
 	if(port < 0) {
 		rtp_session_destroy(sess->raw_sess);
 		free(sess);
@@ -37,7 +39,7 @@ cmr_sess_t *cmr_sess_create(const char *peer_ip, int peer_port, int mode)
 
 	rtp_session_set_scheduling_mode(sess->raw_sess, 1);
 	rtp_session_set_blocking_mode(sess->raw_sess, 0);
-	rtp_session_set_local_addr(sess->raw_sess, g_cmr.conf.local_host, port, port+1);
+	rtp_session_set_local_addr(sess->raw_sess, g_conf.local_host, port, port+1);
 	//rtp_session_set_connected_mode(sess->raw_sess, TRUE);
 	rtp_session_set_symmetric_rtp(sess->raw_sess, TRUE);
 	if(peer_ip != NULL && peer_port > 0) {
@@ -55,10 +57,6 @@ void cmr_sess_destroy(cmr_sess_t *sess)
 {
 	int port = -1;
 
-	if(!g_cmr.init) {
-		return;
-	}
-
 	if(sess) {
 		port = rtp_session_get_local_port(sess->raw_sess);
 
@@ -69,7 +67,7 @@ void cmr_sess_destroy(cmr_sess_t *sess)
 		cmr_rwlock_destroy(&sess->lock);
 		free(sess);
 
-		portmgr_return(g_cmr.portmgr, port);
+		portmgr_return(port);
 	}
 }
 
