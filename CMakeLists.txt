@@ -55,11 +55,13 @@ TARGET_LINK_LIBRARIES(
 	pthread
 )
 ADD_EXECUTABLE(
-	rtprecv
-	${CMR_TEST_PATH}/rtprecv.c
+	ms_test
+	${CMR_TEST_PATH}/ms_test.c
 )
 TARGET_LINK_LIBRARIES(
-	rtprecv
+	ms_test
+	mediastreamer_voip
+	mediastreamer_base
 	ortp
 	m
 	pthread

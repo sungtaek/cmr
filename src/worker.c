@@ -20,8 +20,9 @@ typedef struct _worker {
 	cmr_thread_t thr[CMR_MAX_WORKER];
 	volatile int run;
 	job_t *queue;
-	cmr_cond_t queue_cond;
 	cmr_mutex_t queue_lock;
+	cmr_cond_t cond;
+	cmr_mutex_t cond_lock;
 } worker_t;
 
 worker_t g_worker;
@@ -41,8 +42,9 @@ int worker_init(int count)
 	g_worker.count = count;
 	g_worker.run = 0;
 	g_worker.queue = NULL;
-	cmr_cond_init(&g_worker.queue_cond, NULL);
 	cmr_mutex_init(&g_worker.queue_lock, NULL);
+	cmr_cond_init(&g_worker.cond, NULL);
+	cmr_mutex_init(&g_worker.cond_lock, NULL);
 
 	g_worker.init = 1;
 
@@ -80,7 +82,7 @@ int worker_stop()
 
 	if(g_worker.run) {
 		g_worker.run = 0;
-		cmr_cond_broadcast(&g_worker.queue_cond);
+		//cmr_cond_broadcast(&g_worker.cond);
 		for(i=0; i<g_worker.count; i++) {
 			cmr_thread_join(g_worker.thr[i], NULL);
 		}
@@ -105,8 +107,10 @@ int worker_put_job(void (*cmd)(void*), void *arg)
 	job->arg = arg;
 	job->next = NULL;
 
+	cmr_mutex_lock(&g_worker.queue_lock);
 	LL_APPEND(g_worker.queue, job);
-	cmr_cond_signal(&g_worker.queue_cond);
+	cmr_mutex_unlock(&g_worker.queue_lock);
+	//cmr_cond_signal(&g_worker.cond);
 
 	return SUCC;
 }
@@ -120,7 +124,9 @@ int cmr_worker_get_pending_job_count()
 		return ERR_NOT_INITIALIZED;
 	}
 
+	cmr_mutex_lock(&g_worker.queue_lock);
 	LL_COUNT(g_worker.queue, job, count);
+	cmr_mutex_unlock(&g_worker.queue_lock);
 
 	return count;
 }
@@ -152,12 +158,14 @@ static void *_worker_thread(void *arg)
 		}
 		else {
 			// wait signal
+			/*
 			time_to_wait.tv_sec = time(NULL) + 1;
 			time_to_wait.tv_nsec = 0;
 
-			cmr_mutex_lock(&g_worker.queue_lock);
-			cmr_cond_timedwait(&g_worker.queue_cond, &g_worker.queue_lock, &time_to_wait);
-			cmr_mutex_unlock(&g_worker.queue_lock);
+			cmr_mutex_lock(&g_worker.cond_lock);
+			cmr_cond_timedwait(&g_worker.cond, &g_worker.cond_lock, &time_to_wait);
+			cmr_mutex_unlock(&g_worker.cond_lock);
+			*/
 		}
 	}
 

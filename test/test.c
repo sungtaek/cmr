@@ -53,9 +53,9 @@ int main(int argc, char **argv)
 
 	chan = cmr_chan_create();
 
-	cmr_chan_add_session(chan, sess[0]);
-	cmr_chan_add_session(chan, sess[1]);
-	cmr_chan_add_session(chan, sess[2]);
+	for(i=0; i<sess_cnt; i++) {
+		cmr_chan_add_session(chan, sess[i]);
+	}
 
 	cmr_add_channel(chan);
 
